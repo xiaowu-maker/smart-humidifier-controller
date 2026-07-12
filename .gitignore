@@ -1,0 +1,50 @@
+# ============================================================
+# Smart Humidifier Controller — .gitignore
+# ============================================================
+
+# ---- PlatformIO 构建产物 ----
+.pio/
+.pioenvs/
+.piolibdeps/
+lib/
+!lib/README
+
+# ---- 编译产物 ----
+*.o
+*.a
+*.elf
+*.bin
+*.hex
+*.map
+*.d
+*.sconsign*.dblite
+
+# ---- VS Code ----
+.vscode/
+!.vscode/extensions.json
+
+# ---- Obsidian ----
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/plugins/*/data.json
+.obsidian/plugins/realclaudian/
+
+# ---- Claudian ----
+.claudian/
+
+# ---- 系统文件 ----
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# ---- 临时文件 ----
+*.tmp
+*.bak
+*.log
+
+# ---- 敏感信息 ----
+# 如果后续有 WiFi 密码等配置，不要提交
+# config_secret.h
