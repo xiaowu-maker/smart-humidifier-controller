@@ -32,6 +32,10 @@ unsigned long bootTime;
 bool manualMode = false;   // 手动模式（暂停自动控制）
 bool relayManualState = false;
 
+// 继电器防抖计数器（连续 N 次超阈值才动作，N = RELAY_DEBOUNCE_COUNT）
+int lowHumidityCount = 0;   // 湿度低于下限的连续计数
+int highHumidityCount = 0;  // 湿度高于上限的连续计数
+
 // ============================================================
 // 命令处理函数
 // ============================================================
@@ -222,14 +226,40 @@ void loop() {
 
     SensorData data = sensor.getData();
 
-    // 自动控制逻辑（后续 Task 会独立成 HumidifierController）
+    // 自动控制逻辑（带防抖计数器）
+    // RELAY_DEBOUNCE_COUNT = 3 → 连续3次 × 2秒采样间隔 = 6秒防抖窗口
     if (!manualMode && data.valid) {
         if (data.humidity < HUMIDITY_LOW_THRESHOLD) {
-            relay.turnOn();
+            lowHumidityCount++;
+            highHumidityCount = 0;
+            LOG_DEBUG("CTRL", ("Low hum " + String(lowHumidityCount) + "/" + String(RELAY_DEBOUNCE_COUNT) + " (" + String(data.humidity, 1) + "%)").c_str());
+            if (lowHumidityCount >= RELAY_DEBOUNCE_COUNT) {
+                relay.turnOn();
+            }
         } else if (data.humidity > HUMIDITY_HIGH_THRESHOLD) {
-            relay.turnOff();
+            highHumidityCount++;
+            lowHumidityCount = 0;
+            LOG_DEBUG("CTRL", ("High hum " + String(highHumidityCount) + "/" + String(RELAY_DEBOUNCE_COUNT) + " (" + String(data.humidity, 1) + "%)").c_str());
+            if (highHumidityCount >= RELAY_DEBOUNCE_COUNT) {
+                relay.turnOff();
+            }
+        } else {
+            // 滞回区间内：清零计数器
+            if (lowHumidityCount > 0 || highHumidityCount > 0) {
+                LOG_DEBUG("CTRL", ("In hysteresis zone (" + String(data.humidity, 1) + "%), counters reset").c_str());
+            }
+            lowHumidityCount = 0;
+            highHumidityCount = 0;
         }
-        // 在滞回区内保持当前状态
+    }
+
+    // 传感器故障时清零防抖计数器（防止恢复后沿用旧计数）
+    if (!sensor.isOK()) {
+        if (lowHumidityCount > 0 || highHumidityCount > 0) {
+            LOG_DEBUG("CTRL", "Sensor error, counters reset");
+        }
+        lowHumidityCount = 0;
+        highHumidityCount = 0;
     }
 
     // LED 状态
